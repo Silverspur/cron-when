@@ -147,12 +147,43 @@ class CronField:
             ret_val = (next_value,increment+(self.last-self.first+1),True)
         return ret_val
 
+class DaysOfWeekField(CronField):
+    def __init__(self,string):
+        string = (string
+                .upper()
+                .replace('SUN','0')
+                .replace('MON','1')
+                .replace('TUE','2')
+                .replace('WED','3')
+                .replace('THU','4')
+                .replace('FRI','5')
+                .replace('SAT','6'))
+        super().__init__(string,0,6)
+
+class MonthsField(CronField):
+    def __init__(self,string):
+        string = (string
+                .upper()
+                .replace('JAN','1')
+                .replace('FEB','2')
+                .replace('MAR','3')
+                .replace('APR','4')
+                .replace('MAY','5')
+                .replace('JUN','6')
+                .replace('JUL','7')
+                .replace('AUG','8')
+                .replace('SEP','9')
+                .replace('OCT','10')
+                .replace('NOV','11')
+                .replace('DEC','12'))
+        super().__init__(string,1,12)
+
 
 class DaysFields():
 
     def __init__(self,dom_string,dow_string):
         self.dom = CronField(dom_string,1,31)
-        self.dow = CronField(dow_string,0,6)
+        self.dow = DaysOfWeekField(dow_string)
 
     def next(self,date):
         # If no constraint on either type of day
@@ -210,7 +241,7 @@ class CronExpression:
         self.minutes = CronField(cron_fields[0],0,59)
         self.hours   = CronField(cron_fields[1],0,23)
         self.days    = DaysFields(cron_fields[2],cron_fields[4])
-        self.months  = CronField(cron_fields[3],1,12)
+        self.months  = MonthsField(cron_fields[3])
 
     def getNextOccurence(self,starting_point=None):
         if starting_point:
