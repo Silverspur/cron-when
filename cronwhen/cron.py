@@ -148,8 +148,7 @@ class CronField:
         if next_value >= current:
             ret_val = (next_value,increment,False)
         else:
-            #TODO a decommenter une fois que le reste fonctionne: self.final = True
-            # regarder si le temps d'exécution diminue
+            self.final = True
             ret_val = (next_value,increment+(self.last-self.first+1),True)
         return ret_val
 
@@ -314,7 +313,9 @@ class CronExpression:
                 if not self.hours.final: now.resetHours()
                 printdbg(next_value)
                 printdbg(now.date.day)
-                now.resetDays() #days are never final since they depend on month; and prevents creating a date like 31/02
+                # Note: days are never final since they depend on month;
+                # and we need resetting to prevent creating a date like 31/02
+                now.resetDays()
                 printdbg(next_value)
                 printdbg(now.date.day)
                 year = now.date.year+1 if isJumping else now.date.year
