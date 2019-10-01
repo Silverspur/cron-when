@@ -2,6 +2,8 @@ import datetime
 import calendar
 
 
+DELTA_1_MICROSECOND    = datetime.timedelta(microseconds=1)
+DELTA_1_SECOND         = datetime.timedelta(seconds=1)
 DELTA_1_MINUTE         = datetime.timedelta(seconds=60)
 DELTA_1_HOUR           = datetime.timedelta(seconds=3600)
 DELTA_1_DAY            = datetime.timedelta(days=1)
@@ -32,6 +34,10 @@ class ExtendedDateTime():
     def add(self,timedelta):
         self.date += timedelta
 
+    def resetMicroseconds(self):
+        self.date -= self.date.microsecond * DELTA_1_MICROSECOND
+    def resetSeconds(self):
+        self.date -= self.date.second * DELTA_1_SECOND
     def resetMinutes(self):
         self.date -= self.date.minute * DELTA_1_MINUTE
     def resetHours(self):
@@ -248,7 +254,12 @@ class CronExpression:
             now = ExtendedDateTime(starting_point)
         else:
             now = ExtendedDateTime.now()
-        now.date += DELTA_1_MINUTE # go to next minute so that now is not an answer #TODO
+        # Go to next minute so that now is not an answer
+        # and add 1 second to be sure that a new minute
+        # has not been reached during computation
+        now.date += DELTA_1_MINUTE + DELTA_1_SECOND
+        now.resetMicroseconds()
+        now.resetSeconds()
 
         printdbg("===================================================================")
         printdbg("===================================================================")
