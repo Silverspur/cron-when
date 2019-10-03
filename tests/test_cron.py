@@ -1,14 +1,14 @@
 import pytest
 import datetime
 
-import cronwhen.cron
+import cron
 
 
 base_point = datetime.datetime(2019,10,3,12,49) #Thursday
 
 def check_cron_expression(expr,results):
     d = base_point
-    ce = cronwhen.cron.CronExpression(expr)
+    ce = cron.CronExpression(expr)
     for r in results:
         d = ce.getNextOccurence(d)
         Y,M,D,h,m = r
@@ -280,9 +280,9 @@ def test_cron_list_combination():
 # Never-matching expressions
 def test_cron_never_matching_expressions():
     start = datetime.datetime(2020,2,29,0,0,1)
-    ce = cronwhen.cron.CronExpression('0 0 31 2 *')
+    ce = cron.CronExpression('0 0 31 2 *')
     assert(ce.getNextOccurence(start) is None)
-    ce = cronwhen.cron.CronExpression('0 0 29 2 *')
+    ce = cron.CronExpression('0 0 29 2 *')
     expected_occurrence = datetime.datetime(2024,2,29)
     assert(ce.getNextOccurence(start) == expected_occurrence)
 
