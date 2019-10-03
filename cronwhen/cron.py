@@ -9,6 +9,8 @@ DELTA_1_HOUR           = datetime.timedelta(seconds=3600)
 DELTA_1_DAY            = datetime.timedelta(days=1)
 DELTA_AT_LEAST_1_MONTH = datetime.timedelta(days=31)
 
+MAX_SEC_WITHOUT_RESULT = (365*4+1)*86400 #4 years
+
 DAYS_IN_MONTH = [31,28,31,30,31,30,31,31,30,31,30,31]
 
 debug = False
@@ -259,6 +261,7 @@ class CronExpression:
         now.date += DELTA_1_MINUTE + DELTA_1_SECOND
         now.resetMicroseconds()
         now.resetSeconds()
+        start_date = now.date
 
         printdbg("===================================================================")
         printdbg("===================================================================")
@@ -267,6 +270,7 @@ class CronExpression:
         printdbg("Starting now = "+str(now))
 
         done = False
+        no_result = False
         while not done:
 #        for i in range(1,5):
             printdbg("===================================================================")
@@ -290,6 +294,13 @@ class CronExpression:
                 now.date += increment*DELTA_1_HOUR
                 printdbg('New date = '+str(now.date))
                 continue
+
+            # Check we are not in an infinite loop
+            # (located here since minutes and hours
+            #  are never cause of an infinite loop)
+            if (now.date - start_date).total_seconds() > MAX_SEC_WITHOUT_RESULT:
+                no_result = True
+                break
 
             # Days (day of month, day of week)
             printdbg("-------------------------------------------------------------------")
@@ -324,15 +335,8 @@ class CronExpression:
                 continue
 
             done = True
-        return now.date
+
+        return None if no_result else now.date
 
     def getPreviousOccurence(self):
         pass
-
-
-
-
-
-
-
-

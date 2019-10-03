@@ -4,19 +4,13 @@ import datetime
 import cronwhen.cron
 
 
+base_point = datetime.datetime(2019,10,3,12,49) #Thursday
+
 def check_cron_expression(expr,results):
-    base_point = datetime.datetime(2019,10,3,12,49) #Thursday
     d = base_point
     ce = cronwhen.cron.CronExpression(expr)
     for r in results:
         d = ce.getNextOccurence(d)
-        #TODO
-        #if r is None:
-        #    if d is None:
-        #        print('None [OK]')
-        #    else:
-        #        print('Should be none [KO]')
-        #    continue
         Y,M,D,h,m = r
         if d.year != Y or d.month != M or d.day != D or d.hour != h or d.minute != m:
             df = '%a %d %b(%m) %Y, at %H:%M:%S'
@@ -283,9 +277,14 @@ def test_cron_list_combination():
         check_cron_expression(*t)
 
 
-#TODO
 # Never-matching expressions
-#('0 0 31 2 *',      (None,)),
+def test_cron_never_matching_expressions():
+    start = datetime.datetime(2020,2,29,0,0,1)
+    ce = cronwhen.cron.CronExpression('0 0 31 2 *')
+    assert(ce.getNextOccurence(start) is None)
+    ce = cronwhen.cron.CronExpression('0 0 29 2 *')
+    expected_occurrence = datetime.datetime(2024,2,29)
+    assert(ce.getNextOccurence(start) == expected_occurrence)
 
 #TODO
 # Ill-formed expressions
