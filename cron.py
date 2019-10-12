@@ -244,6 +244,7 @@ class CronExpression:
 
 
     def __init__(self,cron_string):
+        self.string = cron_string
         cron_fields = cron_string.split()
         self.minutes = CronField(cron_fields[0],0,59)
         self.hours   = CronField(cron_fields[1],0,23)
