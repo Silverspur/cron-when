@@ -13,12 +13,8 @@ MAX_SEC_WITHOUT_RESULT = (365*4+1)*86400 #4 years
 
 DAYS_IN_MONTH = [31,28,31,30,31,30,31,31,30,31,30,31]
 
-debug = False
 __dummy__ = None
 
-def printdbg(msg):
-    if debug:
-        print(msg)
 
 class CronError(Exception):
     pass
@@ -121,12 +117,6 @@ class CronField:
                 if a < self.first or a > self.last:
                     raise CronError("Expression '%s' is out of bounds: %d is not in [%d,%d]." % (string,a,self.first,self.last))
 
-        if self.allowed:#P#
-            printdbg(str(self.allowed))
-        else:#P#
-            printdbg('['+str(self.start)+'->'+str(self.end)+']')
-        printdbg(' /'+str(self.mult))
-
 
     #---------------------------------------------------------------------------
     def next(self,current):
@@ -139,42 +129,26 @@ class CronField:
         #TODO multiplicator
         if self.allowed:
             if self.allowed[-1] < current:
-                printdbg('(allowed with loop)')
-                printdbg(self.allowed[0])
                 next_value = self.allowed[0]
             else:
                 for a in self.allowed:
                     if a >= current:
-                        printdbg('(allowed)')
-                        printdbg(a)
                         next_value = a
                         break
         else:
             # 'x-y'
             if current > self.end or current <= self.start:
-                if current > self.end:
-                    printdbg("(above end: set to start="+str(self.start)+')')
-                else:
-                    printdbg("(below start: set to start="+str(self.start)+')')
                 next_value = self.start
             else:
                 x = current - self.start
-                printdbg('x='+str(x))
                 if x % self.mult:
-                    printdbg('x is not a multiple of multiplicator')
                     next_value = x + (self.mult - x % self.mult) + self.start
                     if next_value > self.end:
-                        printdbg("(set to start="+str(self.start)+')')
                         next_value = self.start
                 else:
-                    printdbg('x is a multiple of multiplicator')
                     next_value = current
-            printdbg('(range)')
-            printdbg('next_value='+str(next_value))
 
         increment = next_value - current
-        printdbg('increment = next_value - current:')
-        printdbg(str(increment)+'  =  '+str(next_value)+'  -  '+str(current))
         if next_value >= current:
             ret_val = (next_value,increment,False)
         else:
@@ -246,7 +220,6 @@ class DaysFields():
             days_in_month = 29
 
         # Get next dom
-        printdbg("DAYS OF MONTH")
         if not self.dom.any:
             # set last and end according to days in month
             self.dom.last = days_in_month
@@ -258,18 +231,14 @@ class DaysFields():
             # reset end to none (meaning value depends on month) if needed
             if was_none:
                 self.dom.end = None
-            printdbg("Days of month: "+str((dom_next_value,dom_increment,dom_is_jumping)))
 
 
         # Get next dow
-        printdbg("DAYS OF WEEK")
         if not self.dow.any:
             current_dow = calendar.weekday(date.year,date.month,date.day)+1 #python's 0 is Monday, vs Sunday in cron
             current_dow %= 7
             dow_next_value,dow_increment,dow_is_jumping = self.dow.next(current_dow)
             dow_next_value_as_dom = (date.day + dow_increment) % days_in_month
-            printdbg("Days of week: "+str((dow_next_value,dow_increment,dow_is_jumping)))
-            printdbg("   as dom: "+str(dow_next_value_as_dom))
 
         # Take the smallest increment that is not small due to 'any'
         if self.dow.any: # if (only) dow is any, focus on dom
@@ -310,36 +279,20 @@ class CronExpression:
         now.reset_seconds()
         start_date = now.date
 
-        printdbg("===================================================================")
-        printdbg("===================================================================")
-        printdbg("===================================================================")
-        printdbg("===================================================================")
-        printdbg("Starting now = "+str(now))
-
         done = False
         no_result = False
         while not done:
-#        for i in range(1,5):
-            printdbg("===================================================================")
             # Minutes
-            printdbg("-------------------------------------------------------------------")
-            printdbg("MINUTES")
             # if no result greater than current minute number
             increment = self.minutes.next(now.date.minute)[1]
-            printdbg('Minutes:' + str(increment))
             if increment:
                 now.date += increment*DELTA_1_MINUTE
-            printdbg('New date = '+str(now.date))
 
             # Hours
-            printdbg("-------------------------------------------------------------------")
-            printdbg("HOURS")
             increment = self.hours.next(now.date.hour)[1]
-            printdbg('Hours:' + str(increment))
             if increment:
                 if not self.minutes.final: now.reset_minutes()
                 now.date += increment*DELTA_1_HOUR
-                printdbg('New date = '+str(now.date))
                 continue
 
             # Check we are not in an infinite loop
@@ -350,35 +303,23 @@ class CronExpression:
                 break
 
             # Days (day of month, day of week)
-            printdbg("-------------------------------------------------------------------")
-            printdbg("DAYS")
             increment = self.days.next(now.date)[1]
-            printdbg('Days:' + str(increment))
             if increment:
                 if not self.minutes.final: now.reset_minutes()
                 if not self.hours.final: now.reset_hours()
                 now.date += increment*DELTA_1_DAY
-                printdbg('New date = '+str(now.date))
                 continue
 
             # Months
-            printdbg("-------------------------------------------------------------------")
-            printdbg("MONTHS")
             next_value,increment,is_jumping = self.months.next(now.date.month)
-            printdbg('Months:' + str(increment))
             if increment:
                 if not self.minutes.final: now.reset_minutes()
                 if not self.hours.final: now.reset_hours()
-                printdbg(next_value)
-                printdbg(now.date.day)
                 # Note: days are never final since they depend on month;
                 # and we need resetting to prevent creating a date like 31/02
                 now.reset_days()
-                printdbg(next_value)
-                printdbg(now.date.day)
                 year = now.date.year+1 if is_jumping else now.date.year
                 now.date = datetime.datetime(year,next_value,now.date.day,now.date.hour,now.date.minute)
-                printdbg('New date = '+str(now.date))
                 continue
 
             done = True
