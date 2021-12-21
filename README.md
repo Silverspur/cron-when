@@ -1,4 +1,4 @@
-# cron-when
+# cronwhen
 
 Python package to compute next execution date of a cron expression.
 
