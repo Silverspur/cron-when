@@ -24,33 +24,60 @@ class CronError(Exception):
     pass
 
 
+#===============================================================================
 class ExtendedDateTime():
 
+    #---------------------------------------------------------------------------
     def now():
         now = datetime.datetime.now()
         return ExtendedDateTime(now)
 
+
+    #---------------------------------------------------------------------------
     def __init__(self,date):
         self.date = date
 
+
+    #---------------------------------------------------------------------------
     def add(self,timedelta):
         self.date += timedelta
 
-    def resetMicroseconds(self):
+
+    #---------------------------------------------------------------------------
+    def reset_microseconds(self):
         self.date -= self.date.microsecond * DELTA_1_MICROSECOND
-    def resetSeconds(self):
+
+
+    #---------------------------------------------------------------------------
+    def reset_seconds(self):
         self.date -= self.date.second * DELTA_1_SECOND
-    def resetMinutes(self):
+
+
+    #---------------------------------------------------------------------------
+    def reset_minutes(self):
         self.date -= self.date.minute * DELTA_1_MINUTE
-    def resetHours(self):
+
+
+    #---------------------------------------------------------------------------
+    def reset_hours(self):
         self.date -= self.date.hour * DELTA_1_HOUR
-    def resetDays(self):
+
+
+    #---------------------------------------------------------------------------
+    def reset_days(self):
         self.date -= (self.date.day-1) * DELTA_1_DAY
-    def resetMonths(self):
+
+
+    #---------------------------------------------------------------------------
+    def reset_months(self):
         self.date = ExtendedDateTime(self.date.year,1,self.date.day,self.date.hour,self.date.minute)
 
+
+
+#===============================================================================
 class CronField:
 
+    #---------------------------------------------------------------------------
     def __init__(self,string,first,last):
         self.first = first
         #for 'days of month' field, last is changing depending on the month we are in
@@ -101,6 +128,7 @@ class CronField:
         printdbg(' /'+str(self.mult))
 
 
+    #---------------------------------------------------------------------------
     def next(self,current):
         # '*'
         if self.any:
@@ -154,7 +182,12 @@ class CronField:
             ret_val = (next_value,increment+(self.last-self.first+1),True)
         return ret_val
 
+
+
+#===============================================================================
 class DaysOfWeekField(CronField):
+
+    #---------------------------------------------------------------------------
     def __init__(self,string):
         string = (string
                 .upper()
@@ -167,7 +200,12 @@ class DaysOfWeekField(CronField):
                 .replace('SAT','6'))
         super().__init__(string,0,6)
 
+
+
+#===============================================================================
 class MonthsField(CronField):
+
+    #---------------------------------------------------------------------------
     def __init__(self,string):
         string = (string
                 .upper()
@@ -186,12 +224,17 @@ class MonthsField(CronField):
         super().__init__(string,1,12)
 
 
+
+#===============================================================================
 class DaysFields():
 
+    #---------------------------------------------------------------------------
     def __init__(self,dom_string,dow_string):
         self.dom = CronField(dom_string,1,31)
         self.dow = DaysOfWeekField(dow_string)
 
+
+    #---------------------------------------------------------------------------
     def next(self,date):
         # If no constraint on either type of day
         if self.dom.any and self.dow.any:
@@ -211,11 +254,11 @@ class DaysFields():
             if self.dom.end is None:
                 was_none = True
                 self.dom.end = days_in_month
-            dom_next_value,dom_increment,dom_isJumping = self.dom.next(date.day)
+            dom_next_value,dom_increment,dom_is_jumping = self.dom.next(date.day)
             # reset end to none (meaning value depends on month) if needed
             if was_none:
                 self.dom.end = None
-            printdbg("Days of month: "+str((dom_next_value,dom_increment,dom_isJumping)))
+            printdbg("Days of month: "+str((dom_next_value,dom_increment,dom_is_jumping)))
 
 
         # Get next dow
@@ -223,9 +266,9 @@ class DaysFields():
         if not self.dow.any:
             current_dow = calendar.weekday(date.year,date.month,date.day)+1 #python's 0 is Monday, vs Sunday in cron
             current_dow %= 7
-            dow_next_value,dow_increment,dow_isJumping = self.dow.next(current_dow)
+            dow_next_value,dow_increment,dow_is_jumping = self.dow.next(current_dow)
             dow_next_value_as_dom = (date.day + dow_increment) % days_in_month
-            printdbg("Days of week: "+str((dow_next_value,dow_increment,dow_isJumping)))
+            printdbg("Days of week: "+str((dow_next_value,dow_increment,dow_is_jumping)))
             printdbg("   as dom: "+str(dow_next_value_as_dom))
 
         # Take the smallest increment that is not small due to 'any'
@@ -240,18 +283,21 @@ class DaysFields():
 
 
 
+#===============================================================================
 class CronExpression:
 
-
+    #---------------------------------------------------------------------------
     def __init__(self,cron_string):
         cron_fields = cron_string.split()
         self.string = ' '.join(cron_fields)
-        self.minutes = CronField(cron_fields[0],0,59)
-        self.hours   = CronField(cron_fields[1],0,23)
+        self.minutes = CronField(cron_fields[0],0,59) #TODO create a minute field that just hard sets 0 - 59
+        self.hours   = CronField(cron_fields[1],0,23) #TODO create a minute field that just hard sets 0 - 23
         self.days    = DaysFields(cron_fields[2],cron_fields[4])
         self.months  = MonthsField(cron_fields[3])
 
-    def getNextOccurence(self,starting_point=None):
+
+    #---------------------------------------------------------------------------
+    def get_next_occurrence(self,starting_point=None):
         if starting_point:
             now = ExtendedDateTime(starting_point)
         else:
@@ -260,8 +306,8 @@ class CronExpression:
         # and add 1 second to be sure that a new minute
         # has not been reached during computation
         now.date += DELTA_1_MINUTE + DELTA_1_SECOND
-        now.resetMicroseconds()
-        now.resetSeconds()
+        now.reset_microseconds()
+        now.reset_seconds()
         start_date = now.date
 
         printdbg("===================================================================")
@@ -291,7 +337,7 @@ class CronExpression:
             increment = self.hours.next(now.date.hour)[1]
             printdbg('Hours:' + str(increment))
             if increment:
-                if not self.minutes.final: now.resetMinutes()
+                if not self.minutes.final: now.reset_minutes()
                 now.date += increment*DELTA_1_HOUR
                 printdbg('New date = '+str(now.date))
                 continue
@@ -309,8 +355,8 @@ class CronExpression:
             increment = self.days.next(now.date)[1]
             printdbg('Days:' + str(increment))
             if increment:
-                if not self.minutes.final: now.resetMinutes()
-                if not self.hours.final: now.resetHours()
+                if not self.minutes.final: now.reset_minutes()
+                if not self.hours.final: now.reset_hours()
                 now.date += increment*DELTA_1_DAY
                 printdbg('New date = '+str(now.date))
                 continue
@@ -318,19 +364,19 @@ class CronExpression:
             # Months
             printdbg("-------------------------------------------------------------------")
             printdbg("MONTHS")
-            next_value,increment,isJumping = self.months.next(now.date.month)
+            next_value,increment,is_jumping = self.months.next(now.date.month)
             printdbg('Months:' + str(increment))
             if increment:
-                if not self.minutes.final: now.resetMinutes()
-                if not self.hours.final: now.resetHours()
+                if not self.minutes.final: now.reset_minutes()
+                if not self.hours.final: now.reset_hours()
                 printdbg(next_value)
                 printdbg(now.date.day)
                 # Note: days are never final since they depend on month;
                 # and we need resetting to prevent creating a date like 31/02
-                now.resetDays()
+                now.reset_days()
                 printdbg(next_value)
                 printdbg(now.date.day)
-                year = now.date.year+1 if isJumping else now.date.year
+                year = now.date.year+1 if is_jumping else now.date.year
                 now.date = datetime.datetime(year,next_value,now.date.day,now.date.hour,now.date.minute)
                 printdbg('New date = '+str(now.date))
                 continue
@@ -338,6 +384,3 @@ class CronExpression:
             done = True
 
         return None if no_result else now.date
-
-    def getPreviousOccurence(self):
-        pass

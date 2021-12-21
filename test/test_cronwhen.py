@@ -1,7 +1,7 @@
 import pytest
 import datetime
 
-import cron
+from cronwhen import cronwhen as cron
 
 
 base_point = datetime.datetime(2019,10,3,12,49) #Thursday
@@ -10,7 +10,7 @@ def check_cron_expression(expr,results):
     d = base_point
     ce = cron.CronExpression(expr)
     for r in results:
-        d = ce.getNextOccurence(d)
+        d = ce.get_next_occurrence(d)
         Y,M,D,h,m = r
         if d.year != Y or d.month != M or d.day != D or d.hour != h or d.minute != m:
             df = '%a %d %b(%m) %Y, at %H:%M:%S'
@@ -147,6 +147,7 @@ def test_cron_multiplicator_combination():
         check_cron_expression(*t)
 
 
+
 def test_cron_dom_dow():
     # Days in month vs days of week
     tests = [
@@ -281,10 +282,10 @@ def test_cron_list_combination():
 def test_cron_never_matching_expressions():
     start = datetime.datetime(2020,2,29,0,0,1)
     ce = cron.CronExpression('0 0 31 2 *')
-    assert(ce.getNextOccurence(start) is None)
+    assert(ce.get_next_occurrence(start) is None)
     ce = cron.CronExpression('0 0 29 2 *')
     expected_occurrence = datetime.datetime(2024,2,29)
-    assert(ce.getNextOccurence(start) == expected_occurrence)
+    assert(ce.get_next_occurrence(start) == expected_occurrence)
 
 #TODO
 # Ill-formed expressions
