@@ -16,7 +16,7 @@ with open("README.md", "r") as fh:
         license="GNU General Public License v3.0",
         classifiers=[
             "Development Status :: 5 - Production/Stable",
-            "Topic :: System"
+            "Topic :: System",
             "Environment :: Console",
             "Intended Audience :: Developers",
             "Programming Language :: Python :: 3.5",
