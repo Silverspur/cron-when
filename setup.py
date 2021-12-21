@@ -5,8 +5,9 @@ with open("README.md", "r") as fh:
 
     setup(
         name="cronwhen",
-        version="0.0.1",
+        version="0.1",
         description="A library computing next occurrence of a cron pattern",
+        url="https://github.com/Silverspur/cronwhen",
         long_description=long_description,
         long_description_content_type="text/markdown",
         author="Charles Lumet",
