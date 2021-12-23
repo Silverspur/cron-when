@@ -13,11 +13,11 @@ MAX_SEC_WITHOUT_RESULT = (365*4+1)*86400 #4 years
 
 DAYS_IN_MONTH = [31,28,31,30,31,30,31,31,30,31,30,31]
 
-__dummy__ = None
 
-
+#===============================================================================
 class CronError(Exception):
     pass
+
 
 
 #===============================================================================
@@ -97,15 +97,13 @@ class CronField:
             self.start = self.first
             self.end   = self.last
         elif '-' in main:
-            self.start,self.end = main.split('-')
-            self.start = int(self.start)
-            self.end = int(self.end)
+            self.start,self.end = [int(bound) for bound in main.split('-')]
             if self.start < self.first or self.start > self.last:
-                raise CronError("Expression '%s' has an out of bounds number: %d is not in [%d,%d]." % (string,self.start,self.first,self.last))
+                raise CronError("Field '%s' has an out of bounds number: %d is not in [%d,%d]." % (string,self.start,self.first,self.last))
             if self.end < self.first or self.end > self.last:
-                raise CronError("Expression '%s' has an out of bounds number: %d is not in [%d,%d]." % (string,self.end,self.first,self.last))
+                raise CronError("Field '%s' has an out of bounds number: %d is not in [%d,%d]." % (string,self.end,self.first,self.last))
             if self.end < self.start:
-                raise CronError("Expression '%s' is an ill-written range: %d > %d." % (string,self.start,self.end))
+                raise CronError("Field '%s' is an ill-written range: %d > %d." % (string,self.start,self.end))
         else:
             if ',' in main:
                 self.allowed = [int(a) for a in main.split(',')]
@@ -115,11 +113,24 @@ class CronField:
 
             for a in self.allowed:
                 if a < self.first or a > self.last:
-                    raise CronError("Expression '%s' is out of bounds: %d is not in [%d,%d]." % (string,a,self.first,self.last))
+                    raise CronError("Field '%s' has an out of bounds element: %d is not in [%d,%d]." % (string,a,self.first,self.last))
 
 
     #---------------------------------------------------------------------------
     def next(self,current):
+        """Return next valid value after given one for this field.
+
+        Args:
+            current (int): Starting point to find next valid value.
+
+        Returns:
+            A tuple (next_valid,increment,is_jumping): `next_valid` gives the
+            next valid value allowed for this field starting at `current`,
+            `increment` gives the difference between next valid value and
+            current value, `is_jumping` is True iff the next valid value is
+            lower than current.
+        """
+
         # '*'
         if self.any:
             return (current, 0, False)
@@ -128,13 +139,10 @@ class CronField:
         # 'x[,y,z,...]'
         #TODO multiplicator
         if self.allowed:
-            if self.allowed[-1] < current:
+            if current > self.allowed[-1]:
                 next_value = self.allowed[0]
             else:
-                for a in self.allowed:
-                    if a >= current:
-                        next_value = a
-                        break
+                next_value = min([a for a in self.allowed if a >= current])
         else:
             # 'x-y'
             if current > self.end or current <= self.start:
@@ -142,7 +150,7 @@ class CronField:
             else:
                 x = current - self.start
                 if x % self.mult:
-                    next_value = x + (self.mult - x % self.mult) + self.start
+                    next_value = current + (self.mult - x % self.mult)
                     if next_value > self.end:
                         next_value = self.start
                 else:
@@ -155,6 +163,24 @@ class CronField:
             self.final = True
             ret_val = (next_value,increment+(self.last-self.first+1),True)
         return ret_val
+
+
+
+#===============================================================================
+class MinutesField(CronField):
+
+    #---------------------------------------------------------------------------
+    def __init__(self,string):
+        super().__init__(string,0,59)
+
+
+
+#===============================================================================
+class HoursField(CronField):
+
+    #---------------------------------------------------------------------------
+    def __init__(self,string):
+        super().__init__(string,0,23)
 
 
 
@@ -177,34 +203,22 @@ class DaysOfWeekField(CronField):
 
 
 #===============================================================================
-class MonthsField(CronField):
+class DaysOfMonthField(CronField):
 
     #---------------------------------------------------------------------------
     def __init__(self,string):
-        string = (string
-                .upper()
-                .replace('JAN','1')
-                .replace('FEB','2')
-                .replace('MAR','3')
-                .replace('APR','4')
-                .replace('MAY','5')
-                .replace('JUN','6')
-                .replace('JUL','7')
-                .replace('AUG','8')
-                .replace('SEP','9')
-                .replace('OCT','10')
-                .replace('NOV','11')
-                .replace('DEC','12'))
-        super().__init__(string,1,12)
+        super().__init__(string,1,31)
 
 
 
 #===============================================================================
 class DaysFields():
+    """Class that manages both fields 'day of month' and 'day of week'.
+    """
 
     #---------------------------------------------------------------------------
     def __init__(self,dom_string,dow_string):
-        self.dom = CronField(dom_string,1,31)
+        self.dom = DaysOfMonthField(dom_string)
         self.dow = DaysOfWeekField(dow_string)
 
 
@@ -241,14 +255,38 @@ class DaysFields():
             dow_next_value_as_dom = (date.day + dow_increment) % days_in_month
 
         # Take the smallest increment that is not small due to 'any'
+        _dont_care = None
         if self.dow.any: # if (only) dow is any, focus on dom
-            return (dom_next_value,dom_increment,__dummy__)
+            return (dom_next_value,dom_increment,_dont_care)
         if self.dom.any: # if (only) dom is any, focus on dow
-            return (dow_next_value_as_dom,dow_increment,__dummy__)
+            return (dow_next_value_as_dom,dow_increment,_dont_care)
         if dow_increment < dom_increment : # if noone is any, get the smallest increment
-            return (dow_next_value_as_dom,dow_increment,__dummy__)
+            return (dow_next_value_as_dom,dow_increment,_dont_care)
         else:
-            return (dom_next_value,dom_increment,__dummy__)
+            return (dom_next_value,dom_increment,_dont_care)
+
+
+
+#===============================================================================
+class MonthsField(CronField):
+
+    #---------------------------------------------------------------------------
+    def __init__(self,string):
+        string = (string
+                .upper()
+                .replace('JAN','1')
+                .replace('FEB','2')
+                .replace('MAR','3')
+                .replace('APR','4')
+                .replace('MAY','5')
+                .replace('JUN','6')
+                .replace('JUL','7')
+                .replace('AUG','8')
+                .replace('SEP','9')
+                .replace('OCT','10')
+                .replace('NOV','11')
+                .replace('DEC','12'))
+        super().__init__(string,1,12)
 
 
 
@@ -258,15 +296,24 @@ class CronExpression:
     #---------------------------------------------------------------------------
     def __init__(self,cron_string):
         cron_fields = cron_string.split()
+        if len(cron_fields) != 5:
+            raise CronError("Ill-formatted cron expression '%s': should be composed of 5 space-separated fields." % (cron_string))
         self.string = ' '.join(cron_fields)
-        self.minutes = CronField(cron_fields[0],0,59) #TODO create a minute field that just hard sets 0 - 59
-        self.hours   = CronField(cron_fields[1],0,23) #TODO create a minute field that just hard sets 0 - 23
+        self.minutes = MinutesField(cron_fields[0])
+        self.hours   = HoursField(cron_fields[1])
         self.days    = DaysFields(cron_fields[2],cron_fields[4])
         self.months  = MonthsField(cron_fields[3])
 
 
     #---------------------------------------------------------------------------
     def get_next_occurrence(self,starting_point=None):
+        """Get next valid point in time according to the Cron expression.
+
+        Args:
+            starting_point (datetime.datetime): Starting date from which to find
+                next valid value.
+        """
+
         if starting_point:
             now = ExtendedDateTime(starting_point)
         else:
@@ -279,6 +326,13 @@ class CronExpression:
         now.reset_seconds()
         start_date = now.date
 
+        # Search algorithm:
+        # For each field of the expression, starting with the lesser ones, find
+        # the next valid value for this field. If a field changes, reset all
+        # lesser fields and restart.
+        # Hours and minutes are stated 'final' when they have been reset once,
+        # since they then have the value of the expected final result, whatever
+        # changes happen later to greater fields.
         done = False
         no_result = False
         while not done:
